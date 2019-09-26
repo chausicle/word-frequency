@@ -73,24 +73,32 @@ def main():
         for pwd, folders, files in os.walk(os.path.join(desktop_path, 'peer-reference-forms')):
             file_length = len(files)
             for file in files:
-                path_to_file = os.path.join(pwd, file)
                 filename = file.split('.')[0]
-
-                keywords, df_keywords, unique, success = keyword_dataframe(
-                    path_to_file, filename, successful_analysis
+                path_to_file = os.path.join(pwd, file)
+                path_to_keywords = os.path.join(
+                    desktop_path, 'word-frequency-output',
+                    'keyword_dataframes', '{}_frequencies.csv'.format(filename)
                 )
 
+                # create DataFrame and save to output file keyword_dataframes
+                keywords, df_keywords, success = keyword_dataframe(
+                    path_to_file, filename, path_to_keywords, successful_analysis
+                )
+                # collect keywords for one large word frequency
+                # generate individual wordclouds
+                # save individual DataFrames
                 if keywords != 'Error':
-                    multiform_keywords.extend(unique)
+                    multiform_keywords.extend(keywords)
                     successful_analysis = success
-                    df_keywords.to_csv(os.path.join(
+                    path_to_wordcloud = os.path.join(
                         desktop_path, 'word-frequency-output',
-                        'keyword_dataframes', '{}_keywords.csv'.format(filename))
+                        'wordclouds', "{}_wordcloud.pdf".format(filename)
                     )
+
+                    # create wordcloud and save to output file wordclouds
+                    generate_wordcloud(keywords, path_to_wordcloud, filename)
                 else:
                     print("Couldn't analyze file {}".format(file))
-
-        generate_wordcloud()
 
         end_time = datetime.datetime.now()
         analysis_time = end_time - start_time
@@ -99,24 +107,24 @@ def main():
         print('Successfully analyzed {} forms out of {}'.format(
             successful_analysis, file_length)
         )
-        print('Runtime analysis: {}'.format(analysis_time.seconds))
+        print('Runtime analysis: {} seconds'.format(analysis_time.seconds))
     # prints out warning when peer-reference-forms folder isn't located in Desktop
     else:
         print('Missing folder name in Desktop: peer-reference-forms')
         print('Run code again once a folder named peer-reference-forms is located in Desktop with forms to analyze.')
 
 
-def keyword_dataframe(path_to_file, filename, successful_analysis):
+def keyword_dataframe(path_to_file, filename, path_to_keywords, successful_analysis):
     """
-    Generate word frequency DataFrames from text extracted off of forms.
+    Generate word frequency DataFrame from text extracted off of document.
 
     :param path_to_file: Path to file
     :param filename: Name of file
+    :param path_to_keywords: Path to keyword frequency folder
     :param successful_analysis: Number of successful analysis
     :return keywords: List of all keywords
-    :return :
-    :return:
-    :return:
+    :return df_keywords: DataFrame of word frequencies
+    :return successful_analysis: Counter for successful analyses
     """
     try:
         stopwords = set(STOPWORDS)
@@ -126,7 +134,7 @@ def keyword_dataframe(path_to_file, filename, successful_analysis):
                                 ).decode('utf-8')
 
         if text == '':
-            return 'Error','Error','Error','Error'
+            return 'Error', 'Error', 'Error'
 
         text = text.lower()
         keywords = re.findall(r'[a-zA-Z]\w+', text)
@@ -141,22 +149,24 @@ def keyword_dataframe(path_to_file, filename, successful_analysis):
 
         df = df.sort_values('tf_idf', ascending=True)
         df_keywords = df[~df['keywords'].isin(list(stopwords))]
-        unique_keywords = list(filter(lambda word: word not in stopwords, keywords))
+        df_keywords.to_csv(path_to_keywords)
         successful_analysis += 1
         print('DataFrame creation on file "{}" successful'.format(filename))
 
-        return ' '.join(keywords), df_keywords, unique_keywords, successful_analysis
+        return keywords, df_keywords, successful_analysis
     except Exception as e:
         print("""
         Error:
         
         {}
         """.format(e))
-        return 'Error', 'Error', 'Error', 'Error'
+        return 'Error', 'Error', 'Error'
 
 
 def weightage(word, text, number_of_documents=1):
     """
+    Calculate number of times word appeared, term frequency,
+    inverse document frequency, and product of term frequency and inverse document frequency
 
     :param word: Word
     :param text: Keywords extracted into a list
@@ -175,8 +185,24 @@ def weightage(word, text, number_of_documents=1):
     return number_of_times_word_appeared, tf, idf, tf_idf
 
 
-def generate_wordcloud():
-    print('Generate wordcloud')
+def generate_wordcloud(keywords, path_to_wordcloud, filename):
+    """
+    Generates wordcloud of text extracted from document
+
+    :param keywords: String of keywords found from text
+    :param path_to_wordcloud: String path to wordcloud folder
+    """
+    word_cloud = WordCloud(width=800, height=800,
+                           background_color='white',
+                           stopwords=set(STOPWORDS),
+                           min_font_size=10).generate(' '.join(keywords))
+
+    plt.figure(figsize=(8, 8), facecolor=None)
+    plt.imshow(word_cloud)
+    plt.axis('off')
+    plt.tight_layout(pad=0)
+    plt.savefig(path_to_wordcloud)
+    print('Wordcloud creation on file "{}" successful'.format(filename))
 
 
 main()
