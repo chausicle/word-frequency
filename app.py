@@ -240,7 +240,7 @@ def weightage(word, text, number_of_documents=1):
     return number_of_times_word_appeared, tf, idf, tf_idf
 
 
-def generate_wordcloud(keywords, path_to_wordcloud, filename):
+def generate_wordcloud(keywords, path_to_wordcloud, filename=''):
     """
     Generates wordcloud of text extracted from document
 
@@ -258,7 +258,7 @@ def generate_wordcloud(keywords, path_to_wordcloud, filename):
     plt.axis('off')
     plt.tight_layout(pad=0)
     plt.savefig(path_to_wordcloud)
-    if not filename:
+    if filename != '':
         print('Wordcloud creation on file "{}" successful'.format(filename))
     else:
         print('Worldcloud creation on all successful document analysis')
